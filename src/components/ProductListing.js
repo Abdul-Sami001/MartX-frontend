@@ -1,66 +1,68 @@
 import React from 'react';
 import { Box, Grid, Image, Text, Button, Flex, Icon } from '@chakra-ui/react';
 import { FaStar } from 'react-icons/fa';
-import { fetchProducts } from '../services/productService';
-import { useFetchData } from '../hooks/useFetchData';
+import useCartStore from '../stores/cartStore';  // Import Zustand cart store
+import useProductStore from '../stores/productStore';  // Import Zustand cart store
+
 function ProductListing() {
-    // const products = [
-    //     { name: "Product 1", price: "$50", image: "/category-imgs/category1.jpeg", description: "This is a great product", rating: 4 },
-    //     { name: "Product 2", price: "$75", image: "/category-imgs/category2.jpeg", description: "This is another great product", rating: 5 },
-    //     // Add more product objects here...
-    
-    // ];
+    const products = useProductStore((state) => state.products);  // Fetch products from the product store
+    const addToCart = useCartStore((state) => state.addToCart);  // Use the addToCart function from the cart store
+    const initializeCart = useCartStore((state) => state.initializeCart);  // Use the initializeCart function
 
-    const {
-        data,
-        loading,
-    } = useFetchData();
+    const handleAddToCart = (product) => {
+        addToCart(product);
+        initializeCart();  // Re-fetch cart items to ensure the latest data is displayed
+    };
 
-    console.log(data)
+    if (!products || products.length === 0) return <p>Loading...</p>;
 
     return (
         <Box p={4} mt={8}>
             <Text fontSize="2xl" mb={4} fontWeight="bold">Featured Products</Text>
             <Grid templateColumns="repeat(auto-fill, minmax(240px, 1fr))" gap={6}>
-                {data?.results?.map((product) => (
+                {products.map((product) => (
                     <Box
-                        //key={index}
+                        key={product.id}
                         p={4}
                         border="1px solid #e2e8f0"
                         borderRadius="md"
                         _hover={{ boxShadow: "lg", transform: "translateY(-5px)" }}
                         transition="transform 0.3s ease"
                     >
-                        {/* Product Image */}
                         <Box
                             height="200px"
                             width="100%"
                             overflow="hidden"
                             mb={4}
                             borderRadius="md"
+                            bg="gray.100"
                         >
-                           
-                            <Image
-                                src={product.image}
-                                alt={product.title}
-                                width="100%"
-                                height="100%"
-                                objectFit="cover"
-                                transition="transform 0.3s"
-                                _hover={{ transform: "scale(1.05)" }}
-                            />
+                            {product.image ? (
+                                <Image
+                                    src={product.image}
+                                    alt={product.title}
+                                    width="100%"
+                                    height="100%"
+                                    objectFit="cover"
+                                    transition="transform 0.3s"
+                                    _hover={{ transform: "scale(1.05)" }}
+                                />
+                            ) : (
+                                <Box height="100%" display="flex" alignItems="center" justifyContent="center">
+                                    <Text>No Image Available</Text>
+                                </Box>
+                            )}
                         </Box>
 
-                        {/* Product Name */}
-                        <Text fontWeight="bold" mb={1}>{product.title}</Text>
-                        
-                        {/* Product Description */}
-                        <Text fontSize="sm" color="gray.600" mb={2}>
-                            {product.description}
+                        <Text fontWeight="bold" mb={1} noOfLines={1} minHeight="24px">
+                            {product.title}
                         </Text>
 
-                        {/* Product Rating */}
-                        <Flex mb={4}>
+                        <Text fontSize="sm" color="gray.600" mb={2} noOfLines={3} minHeight="60px">
+                            {product.description || ' '}
+                        </Text>
+
+                        <Flex mb={4} minHeight="24px">
                             {[...Array(5)].map((_, i) => (
                                 <Icon
                                     key={i}
@@ -71,16 +73,17 @@ function ProductListing() {
                             ))}
                         </Flex>
 
-                        {/* Product Price */}
-                        <Text fontWeight="bold" fontSize="lg" mb={4}>{product.unit_price}</Text>
+                        <Text fontWeight="bold" fontSize="lg" mb={4} minHeight="24px">
+                            {product.unit_price ? `Rs ${product.unit_price.toFixed(2)}` : 'N/A'}
+                        </Text>
 
-                        {/* Add to Cart Button */}
                         <Button
                             bgGradient="linear(to-b,  #132063, #0A0E23)"
                             color="white"
                             _hover={{ bgGradient: "linear(to-b,  orange.200, orange.600)", boxShadow: "md" }}
                             size="sm"
                             width="full"
+                            onClick={() => handleAddToCart(product)}  // Handle add to cart and re-fetch the cart
                         >
                             Add to Cart
                         </Button>
@@ -88,7 +91,7 @@ function ProductListing() {
                 ))}
             </Grid>
         </Box>
-        
-    )
+    );
 }
+
 export default ProductListing;

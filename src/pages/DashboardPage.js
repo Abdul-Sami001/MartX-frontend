@@ -1,46 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import Banner from '../components/Banner';
 import FeaturedCategories from '../components/FeaturedCategories';
 import Footer from '../components/Footer';
-import ProductList from '../components/ProductList';
-import Testimonials from '../components/Testimonials';
-import Cart from '../components/Cart';
-import { fetchCart, createCart } from '../services/productService';
 import ProductListing from '../components/ProductListing';
+import Testimonials from '../components/Testimonials';
 import PromotionalBanner from '../components/PromotionalBanner';
 import NewsletterSignup from '../components/NewsletterSignup';
+import Cart from '../components/Cart';
+import useStore from '../stores/store';
 
 const DashboardPage = () => {
-    const [cartId, setCartId] = useState(null);
-    const [cart, setCart] = useState(null);
+    const { initializeCart, fetchProducts, } = useStore();
 
     useEffect(() => {
-        const initializeCart = async () => {
-            let storedCartId = localStorage.getItem('cartId');
-            if (!storedCartId) {
-                try {
-                    const newCart = await createCart();
-                    storedCartId = newCart.id;
-                    localStorage.setItem('cartId', storedCartId);
-                } catch (error) {
-                    console.error('Failed to create a new cart:', error);
-                    return;
-                }
-            }
-            setCartId(storedCartId);
-            const cartData = await fetchCart(storedCartId);
-            setCart(cartData);
-        };
-
         initializeCart();
-    }, []);
-
-    const handleUpdateCart = (updatedCart) => {
-        setCart(updatedCart);
-    };
-
-    if (!cartId) return <div>Loading...</div>;
+        fetchProducts();
+    }, [initializeCart, fetchProducts]);
 
     return (
         <>
@@ -50,8 +26,7 @@ const DashboardPage = () => {
             <ProductListing />
             <PromotionalBanner />
             <Testimonials />
-            <ProductList cartId={cartId} onUpdateCart={handleUpdateCart} />
-            <Cart cartId={cartId} cart={cart} onUpdateCart={handleUpdateCart} />
+            <Cart />
             <NewsletterSignup />
             <Footer />
         </>

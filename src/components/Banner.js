@@ -1,6 +1,6 @@
 import React from 'react';
 import Slider from 'react-slick';
-import { Box, Flex, Heading, Text, Button } from '@chakra-ui/react';
+import { Box, Heading, Text, Button } from '@chakra-ui/react';
 import { motion } from 'framer-motion';
 
 function Banner() {
@@ -39,7 +39,7 @@ function Banner() {
     ];
 
     return (
-        <Box mt="72px"> {/* Adjust this margin to match the height of your Navbar */}
+        <Box mt="0" pt="0"> {/* Removed margin and padding to align perfectly with the navbar */}
             <Slider {...settings}>
                 {slides.map((slide, index) => (
                     <Box key={index}>

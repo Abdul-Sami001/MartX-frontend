@@ -1,106 +1,100 @@
-import React, { useState, useEffect } from 'react';
-import { fetchCart, updateCartItem, removeCartItem } from '../services/productService';
-import { Box, Text, Button, Input, HStack, VStack } from '@chakra-ui/react';
+import React, { useEffect } from 'react';
+import {
+    Box, Text, Flex, Button, Image, IconButton,
+    NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper
+} from '@chakra-ui/react';
+import { FaTrash } from 'react-icons/fa';
+import useCartStore from '../stores/cartStore';  // Import the Zustand cart store
 
-const Cart = ({ cartId }) => {
-    const [cart, setCart] = useState(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
+function Cart() {
+    const cartItems = useCartStore((state) => state.cartItems);  // Get cart items from the store
+    const removeFromCart = useCartStore((state) => state.removeFromCart);  // Get removeFromCart action
+    const updateQuantity = useCartStore((state) => state.updateQuantity);  // Get updateQuantity action
 
+    // Log cart items to inspect their structure
     useEffect(() => {
-        const loadCart = async () => {
-            try {
-                const data = await fetchCart(cartId);
-                setCart(data);
-            } catch (err) {
-                setError('Failed to load cart');
-            } finally {
-                setLoading(false);
-            }
-        };
+        console.log('Cart items:', cartItems);
+    }, [cartItems]);
 
-        loadCart();
-    }, [cartId]);
-
-    const handleUpdateQuantity = async (itemId, newQuantity) => {
-        if (newQuantity <= 0) {
-            alert('Quantity must be at least 1');
-            return;
-        }
-
-        try {
-            const updatedItem = await updateCartItem(cartId, itemId, newQuantity);
-            setCart((prevCart) => {
-                const updatedItems = prevCart.items.map(item =>
-                    item.id === updatedItem.id ? updatedItem : item
-                );
-                const updatedTotalPrice = updatedItems.reduce(
-                    (sum, item) => sum + item.total_price,
-                    0
-                );
-                return {
-                    ...prevCart,
-                    items: updatedItems,
-                    total_price: updatedTotalPrice,
-                };
-            });
-        } catch (err) {
-            console.error('Failed to update item quantity:', err);
-            alert('Failed to update item quantity.');
-        }
+    const handleQuantityChange = (itemId, value) => {
+        const newQuantity = parseInt(value, 10);
+        if (isNaN(newQuantity) || newQuantity < 1) return;
+        updateQuantity(itemId, newQuantity);  // Update quantity in the store
     };
 
-    const handleRemoveItem = async (itemId) => {
-        try {
-            await removeCartItem(cartId, itemId);
-            setCart((prevCart) => {
-                const updatedItems = prevCart.items.filter(item => item.id !== itemId);
-                const updatedTotalPrice = updatedItems.reduce(
-                    (sum, item) => sum + item.total_price,
-                    0
-                );
-                return {
-                    ...prevCart,
-                    items: updatedItems,
-                    total_price: updatedTotalPrice,
-                };
-            });
-        } catch (err) {
-            console.error('Failed to remove item from cart:', err);
-            alert('Failed to remove item from cart.');
-        }
-    };
-
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>{error}</div>;
-
+    if (!cartItems || cartItems.length === 0) {
+        return <Text>Your cart is empty.</Text>;  // Show empty cart message if no items
+    }
+    //const total_price = cartItems.items.total_price;
     return (
-        <Box>
-            <Text fontSize="2xl" mb={4}>Your Cart</Text>
-            <VStack spacing={4}>
-                {cart.items.map(item => (
-                    <Box key={item.id} p={4} border="1px solid #ccc" w="100%">
-                        <Text fontWeight="bold">{item.product.title}</Text>
-                        <Text>Price: ${item.product.unit_price.toFixed(2)}</Text>
-                        <HStack mt={2} align="center">
-                            <Button onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}>-</Button>
-                            <Input
-                                type="number"
-                                value={item.quantity}
-                                onChange={(e) => handleUpdateQuantity(item.id, parseInt(e.target.value))}
-                                width="60px"
-                                textAlign="center"
-                            />
-                            <Button onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}>+</Button>
-                        </HStack>
-                        <Text mt={2}>Total: ${item.total_price.toFixed(2)}</Text>
-                        <Button mt={2} colorScheme="red" onClick={() => handleRemoveItem(item.id)}>Remove</Button>
-                    </Box>
-                ))}
-            </VStack>
-            <Text mt={4} fontWeight="bold">Total Price: ${cart.total_price.toFixed(2)}</Text>
-        </Box>
+        <Box p={6} maxW="800px" mx="auto">
+            <Text fontSize="2xl" fontWeight="bold" mb={4}>Your Cart</Text>
+            {cartItems.map((item, index) => {
+                // Safely access product data
+                
+                const product = item?.product || {};
+                const imageUrl = product.image || '';  // Handle missing image
+                const title = product.title || 'No title available';  // Handle missing title
+                const unitPrice = product.unit_price ? product.unit_price.toFixed(2) : 'N/A';  // Handle missing unit price
+                const totalPrice = product.unit_price ? (product.unit_price * item.quantity).toFixed(2) : 'N/A';  // Calculate total price
+
+                return (
+                    <Flex key={item.id} p={4} alignItems="center" justifyContent="space-between" borderBottom="1px solid #e2e8f0">
+                        <Flex align="center" flex="1">
+                            {/* Product Image */}
+                            {imageUrl ? (
+                                <Image src={imageUrl} alt={title} boxSize="60px" objectFit="cover" borderRadius="md" />
+                            ) : (
+                                <Box boxSize="60px" bg="gray.200" display="flex" alignItems="center" justifyContent="center" borderRadius="md">
+                                    <Text fontSize="xs" color="gray.500">No image available</Text>
+                                </Box>
+                            )}
+                            <Box ml={4}>
+                                {/* Product Title and Price */}
+                                <Text fontWeight="bold" mb={1}>{title}</Text>
+                                <Text color="gray.500">Unit Price: Rs {unitPrice}</Text>
+                                <Text color="gray.500">Total: Rs {totalPrice}</Text>
+
+                                {/* Quantity Control */}
+                                <NumberInput
+                                    size="sm"
+                                    maxW={24}
+                                    //value={localQuantities[index]}
+                                    min={1}
+                                    onChange={(value) => handleQuantityChange(item.id, parseInt(value), index)}
+                                    mt={2}
+                                >
+                                    <NumberInputField />
+                                    <NumberInputStepper>
+                                        <NumberIncrementStepper />
+                                        <NumberDecrementStepper />
+                                    </NumberInputStepper>
+                                </NumberInput>
+                            </Box>
+                        </Flex>
+                        {/* Remove Item Button */}
+                        <IconButton
+                            icon={<FaTrash />}
+                            aria-label="Remove Item"
+                            colorScheme="red"
+                            variant="outline"
+                            onClick={() => removeFromCart(item.id)}
+                            size="sm"
+                        />
+                    </Flex>
+                );
+            })}
+            {/* Display Estimated Total and Checkout Button */}
+            <Flex justifyContent="space-between" alignItems="center" mt={6}>
+                <Text fontSize="lg" fontWeight="bold">
+                    Estimated Total: Rs {cartItems.reduce((total, item) => total + (item.product?.unit_price * item.quantity || 0), 0).toFixed(2)}
+                </Text>
+                <Button colorScheme="orange" size="lg">
+                    Checkout
+                </Button>
+            </Flex>
+        </Box> 
     );
-};
+}
 
 export default Cart;
