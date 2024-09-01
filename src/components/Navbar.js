@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Text, Flex, Button, Image,
     Drawer, DrawerBody, DrawerFooter, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton,
-    useDisclosure, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, InputGroup, InputRightElement, Input, IconButton
+    useDisclosure, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, InputGroup, InputRightElement, Input, IconButton, Stack
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FaShoppingCart, FaTrash } from 'react-icons/fa';
@@ -45,48 +45,51 @@ function Navbar() {
 
     return (
         <Box as="nav" bg="#0A0E23" p={4} borderBottom="2px" borderColor="#F47D31" marginBottom="0">
-            <Flex align="center" justify="space-between" maxW="1200px" mx="auto">
+            <Flex align="center" justify="space-between" maxW="1200px" mx="auto" flexWrap="wrap">
                 {/* Logo */}
-                <Box>
+                <Box mb={{ base: 2, md: 0 }}>
                     <Image src="/logo.jpeg" alt="MartX Logo" height="40px" />
                 </Box>
 
                 {/* Search Bar */}
-                <InputGroup w="40%">
-                    <Input
-                        placeholder="Search for products"
-                        bg="white"
-                        borderRadius="full"
-                        _focus={{ borderColor: "#F47D31" }}
-                        _placeholder={{ color: "#0A0E23" }}
-                    />
-                    <InputRightElement>
-                        <Button colorScheme="orange" borderRadius="full">
-                            <SearchIcon />
-                        </Button>
-                    </InputRightElement>
-                </InputGroup>
+                <Box flex="1" mb={{ base: 2, md: 0 }} w={{ base: "100%", md: "auto" }}>
+                    <InputGroup>
+                        <Input
+                            placeholder="Search for products"
+                            bg="white"
+                            borderRadius="full"
+                            _focus={{ borderColor: "#F47D31" }}
+                            _placeholder={{ color: "#0A0E23" }}
+                        />
+                        <InputRightElement>
+                            <Button colorScheme="orange" borderRadius="full">
+                                <SearchIcon />
+                            </Button>
+                        </InputRightElement>
+                    </InputGroup>
+                </Box>
 
                 {/* Buttons & Icons */}
-                <Flex align="center">
-                    <Button colorScheme="orange" variant="outline" borderColor="#F47D31" color="white" borderRadius="full" mx={2}>
+                <Stack direction="row" spacing={2} align="center">
+                    <Button colorScheme="orange" variant="outline" borderColor="#F47D31" color="white" borderRadius="full">
                         Login
                     </Button>
-                    <Button colorScheme="orange" bg="#F47D31" color="white" borderRadius="full" mx={2}>
+                    <Button colorScheme="orange" bg="#F47D31" color="white" borderRadius="full">
                         Become a Seller
                     </Button>
-                    <IconButton
-                        icon={<FaShoppingCart />}
-                        aria-label="Shopping Cart"
-                        variant="ghost"
-                        size="lg"
-                        mx={2}
-                        _hover={{ bg: "#F47D31", color: "white" }}
-                        color="white"
-                        onClick={onOpen} // Open the drawer on click
-                    />
-                    <Text color="white" ml={1}>{cartItems.length}</Text>
-                </Flex>
+                    <Flex align="center">
+                        <IconButton
+                            icon={<FaShoppingCart />}
+                            aria-label="Shopping Cart"
+                            variant="ghost"
+                            size="lg"
+                            _hover={{ bg: "#F47D31", color: "white" }}
+                            color="white"
+                            onClick={onOpen} // Open the drawer on click
+                        />
+                        <Text color="white" ml={1}>{cartItems.length}</Text>
+                    </Flex>
+                </Stack>
 
                 {/* Slide-in Cart Drawer */}
                 <Drawer isOpen={isOpen} placement="right" onClose={onClose} size="md">
@@ -114,7 +117,6 @@ function Navbar() {
                                             <Text fontWeight="bold" mb={2}>{item.product?.title || 'No title available'}</Text>
                                             <Text color="gray.500">Unit Price: Rs {item.product?.unit_price?.toFixed(2) || 'N/A'}</Text>
                                             <Text color="gray.500">Total: Rs {item.total_price?.toFixed(2) || 'N/A'}</Text>
-                                           
 
                                             {/* Quantity Control */}
                                             <NumberInput
