@@ -27,12 +27,7 @@ const DashboardPage = () => {
             <ProductListing />
             <PromotionalBanner />
             <Testimonials />
-            <VendorCard
-                avatarUrl="https://via.placeholder.com/150"
-                companyName="Tech Solutions"
-                rating={4.8}
-                visitHandler={() => console.log('Visit button clicked')}
-            />
+            <VendorCard />
             <Cart />
             <NewsletterSignup />
             <Footer />

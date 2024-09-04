@@ -2,21 +2,19 @@ import React, { useState } from 'react';
 import { Formik, Form, Field } from 'formik';
 import * as Yup from 'yup';
 import {
-    Box, Button, FormControl, FormLabel, Input, InputGroup, InputRightElement, Text, useColorModeValue
+    Box, Button, FormControl, FormLabel, Input, InputGroup, InputRightElement, Text, useColorModeValue,
 } from '@chakra-ui/react';
+import useAuthStore from '../stores/authStore'; // Import Zustand store
 
 // Validation Schema using Yup
 const LoginSchema = Yup.object().shape({
-    email: Yup.string()
-        .email('Invalid email address')
-        .required('Email is required'),
-    password: Yup.string()
-        .min(8, 'Password is too short - should be 8 chars minimum.')
-        .required('Password is required'),
+    email: Yup.string().email('Invalid email address').required('Email is required'),
+    password: Yup.string().min(8, 'Password is too short - should be 8 chars minimum.').required('Password is required'),
 });
 
-const LoginForm = ({ onSubmit, error }) => {
+const LoginForm = () => {
     const bgColor = useColorModeValue('white', 'gray.700');
+    const { login, error, isAuthenticated } = useAuthStore(); // Access Zustand store actions and state
 
     // Password Input with integrated Show/Hide functionality
     const PasswordInput = () => {
@@ -48,7 +46,11 @@ const LoginForm = ({ onSubmit, error }) => {
             initialValues={{ email: '', password: '' }}
             validationSchema={LoginSchema}
             onSubmit={(values, actions) => {
-                onSubmit(values);
+                const credentials = {
+                    email: values.email,
+                    password: values.password,
+                };
+                login(credentials); // Call Zustand's login action
                 actions.setSubmitting(false);
             }}
         >

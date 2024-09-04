@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Grid, Image, Text, Button, Flex, Icon } from '@chakra-ui/react';
 import { FaStar } from 'react-icons/fa';
 import useCartStore from '../stores/cartStore';  // Import Zustand cart store
@@ -9,15 +10,23 @@ function ProductListing() {
     const addToCart = useCartStore((state) => state.addToCart);  // Use the addToCart function from the cart store
     const initializeCart = useCartStore((state) => state.initializeCart);  // Use the initializeCart function
 
+    const navigate = useNavigate(); // For navigation
+
+
     const handleAddToCart = (product) => {
         addToCart(product);
         initializeCart();  // Re-fetch cart items to ensure the latest data is displayed
     };
 
+    
+    const handleCardClick = (productId) => {
+        navigate(`/product/${productId}`);
+    };
+
     if (!products || products.length === 0) return <p>Loading...</p>;
 
     return (
-        <Box p={4} mt={8}>
+        <Box p={4} mt={8} >
             <Text fontSize="2xl" mb={4} fontWeight="bold">Featured Products</Text>
             <Grid templateColumns="repeat(auto-fill, minmax(240px, 1fr))" gap={6}>
                 {products.map((product) => (
@@ -26,6 +35,7 @@ function ProductListing() {
                         p={4}
                         border="1px solid #e2e8f0"
                         borderRadius="md"
+                        onClick={() => handleCardClick(product.id)}  // Navigate to product detail
                         _hover={{ boxShadow: "lg", transform: "translateY(-5px)" }}
                         transition="transform 0.3s ease"
                     >
