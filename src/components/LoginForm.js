@@ -15,6 +15,7 @@ const LoginSchema = Yup.object().shape({
 const LoginForm = () => {
     const bgColor = useColorModeValue('white', 'gray.700');
     const { login, error, isAuthenticated } = useAuthStore(); // Access Zustand store actions and state
+    const [localError, setLocalError] = useState(''); // Local state for additional error handling
 
     // Password Input with integrated Show/Hide functionality
     const PasswordInput = () => {
@@ -45,12 +46,22 @@ const LoginForm = () => {
         <Formik
             initialValues={{ email: '', password: '' }}
             validationSchema={LoginSchema}
-            onSubmit={(values, actions) => {
+            onSubmit={async (values, actions) => {
                 const credentials = {
                     email: values.email,
                     password: values.password,
                 };
-                login(credentials); // Call Zustand's login action
+
+                const loginSuccess = await login(credentials); // Call Zustand's login action
+
+                if (!loginSuccess) {
+                    setLocalError('Login failed. Please check your credentials.');
+                } else {
+                    setLocalError('');
+                    // Optionally redirect after successful login, if it's not done in the store
+                    window.location.href = '/dashboard';
+                }
+
                 actions.setSubmitting(false);
             }}
         >
@@ -86,6 +97,7 @@ const LoginForm = () => {
                         </FormControl>
 
                         {error && <Text color="red.500" mt={2}>{error}</Text>}
+                        {localError && <Text color="red.500" mt={2}>{localError}</Text>}
 
                         <Button
                             mt={4}

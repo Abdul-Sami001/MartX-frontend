@@ -1,36 +1,64 @@
 import { create } from 'zustand';
-import { loginService, logoutService } from '../services/authService'; // Assuming you have a logoutService
 import axios from 'axios';
+import { refreshTokenService } from '../services/authService';  // Import refresh token service
+import api from '../services/authInterceptor';  // Axios instance with interceptor
 
+// Auth Store using Zustand
 const useAuthStore = create((set) => ({
     accessToken: localStorage.getItem('accessToken') || null,
     refreshToken: localStorage.getItem('refreshToken') || null,
     isAuthenticated: !!localStorage.getItem('accessToken'),
-    userInfo: null,
-    error: null,
+    user: null,
 
+    // Action to login
     login: async (credentials) => {
         try {
             let newCredentials = {
                 username: credentials.email,
-                password: credentials.password,
+                password: credentials.password
             }
-            console.log('credentials', newCredentials)
-            const data = await loginService(newCredentials);
-            localStorage.setItem('accessToken', data.access);  // Store access token
-            localStorage.setItem('refreshToken', data.refresh); // Store refresh token
+            // Login and get tokens
+            const response = await axios.post('http://127.0.0.1:8000/auth/jwt/create/', newCredentials);
+            const { access, refresh } = response.data;
 
+            // Store tokens
+            localStorage.setItem('accessToken', access);
+            localStorage.setItem('refreshToken', refresh);
+            console.log(access)
+            // Fetch the user's profile using the /users/me/ endpoint
+            const userProfileResponse = await api.get('/auth/users/me/');
+            console.log('User profile:', userProfileResponse.data);
+            const user = userProfileResponse.data;
+
+            // Update the zustand store
             set({
-                accessToken: data.access,
-                refreshToken: data.refresh,
-                isAuthenticated: true,
-                error: null,
+                accessToken: access,
+                refreshToken: refresh,
+                user: user,
+                isAuthenticated: true
             });
-        } catch (err) {
-            set({ error: err.message });
+            return true;
+        } catch (error) {
+            console.error('Login error:', error);
+            return false;
         }
     },
 
+    // Action to refresh the token (using refreshTokenService)
+    refreshToken: async () => {
+        try {
+            const newAccessToken = await refreshTokenService();  // Using the refreshTokenService function
+
+            // Update access token in Zustand store and localStorage
+            set({ accessToken: newAccessToken });
+            return newAccessToken;
+        } catch (error) {
+            console.error('Token refresh error:', error);
+            return null;
+        }
+    },
+
+    // Action to logout
     logout: () => {
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
@@ -39,27 +67,11 @@ const useAuthStore = create((set) => ({
             accessToken: null,
             refreshToken: null,
             isAuthenticated: false,
-            userInfo: null,
+            user: null,
         });
 
-        // Call logout service if required (e.g., to invalidate tokens on the backend)
-        logoutService();
-    },
-
-    fetchUserInfo: async () => {
-        try {
-            const token = localStorage.getItem('accessToken');
-            if (token) {
-                const response = await axios.get('http://127.0.0.1:8000/user/profile', {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                });
-                set({ userInfo: response.data });
-            }
-        } catch (err) {
-            console.error('Failed to fetch user info:', err);
-        }
+        // Redirect to login page after logout
+        window.location.href = '/login';
     },
 }));
 

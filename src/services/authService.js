@@ -1,3 +1,4 @@
+import { EmailIcon } from '@chakra-ui/icons';
 import axios from 'axios';
 
 // Set the base URL for your backend
@@ -5,15 +6,17 @@ const API_URL = 'http://127.0.0.1:8000/auth';
 
 // Login Service: Handles sending the login credentials and receiving the JWT tokens
 export const loginService = async (credentials) => {
+    let newCredentials = {
+        email: credentials.email,
+        password: credentials.password
+    }
     try {
+        const response = await axios.post(`${API_URL}/jwt/create/`, newCredentials);
 
-        // const payload = {
-        //     username: email,  // the API expects 'username' but we pass email
-        //     password: password
-        // };
+        // Store tokens in localStorage
+        localStorage.setItem('accessToken', response.data.access);
+        localStorage.setItem('refreshToken', response.data.refresh);
 
-        const response = await axios.post(`${API_URL}/jwt/create/`, credentials);
-        window.location.href = '/dashboard';
         return response.data; // { access, refresh }
     } catch (error) {
         throw new Error(error.response?.data?.detail || 'Login failed');
@@ -23,11 +26,16 @@ export const loginService = async (credentials) => {
 // Refresh Token Service: Handles refreshing the access token
 export const refreshTokenService = async () => {
     const refreshToken = localStorage.getItem('refreshToken');
+    if (!refreshToken) {
+        throw new Error('No refresh token available');
+    }
+
     try {
         const response = await axios.post(`${API_URL}/jwt/refresh/`, {
             refresh: refreshToken,
         });
-        localStorage.setItem('accessToken', response.data.access); // Update the access token
+        // Update the access token in localStorage
+        localStorage.setItem('accessToken', response.data.access);
         return response.data.access;
     } catch (error) {
         throw new Error('Token refresh failed');
@@ -45,20 +53,21 @@ export const logoutService = async () => {
                 }
             });
         }
+
+        // Clear tokens from local storage
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
-        window.location.href = '/login';
+        window.location.href = '/login';  // Redirect after logout
     } catch (error) {
         console.error('Logout failed', error.response?.data || error.message);
     }
 };
 
+// Signup Service: Create a new user
 export const signupService = async (userData) => {
-    console.log(userData);
     try {
         await axios.post(`${API_URL}/users/`, userData);
-        window.location.href = '/login';
-        
+        window.location.href = '/login';  // Redirect to login after successful signup
     } catch (error) {
         throw new Error(error.response?.data?.detail || 'Signup failed');
     }

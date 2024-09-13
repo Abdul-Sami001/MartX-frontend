@@ -2,11 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
     Box, Text, Flex, Button, Image,
     Drawer, DrawerBody, DrawerFooter, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton,
-    useDisclosure, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper, InputGroup, InputRightElement, Input, IconButton, Stack
+    useDisclosure, NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper,
+    InputGroup, InputRightElement, Input, IconButton, Stack, Modal, ModalOverlay, ModalContent, ModalHeader, ModalCloseButton,
+    ModalBody, ModalFooter, FormControl, FormLabel
 } from '@chakra-ui/react';
 import { SearchIcon } from '@chakra-ui/icons';
 import { FaShoppingCart, FaTrash } from 'react-icons/fa';
 import useCartStore from '../stores/cartStore';
+import { handleCheckout } from '../services/checkoutService';  // Import the centralized checkout function
+import { useToast } from '@chakra-ui/react';  // For notifications (toast)
+import { useNavigate } from 'react-router-dom';  // For page navigation
 
 function Navbar() {
     const { isOpen, onOpen, onClose } = useDisclosure(); // Drawer control
@@ -15,6 +20,20 @@ function Navbar() {
     const updateQuantity = useCartStore((state) => state.updateQuantity);
     const [localQuantities, setLocalQuantities] = useState([]);
     const [localTotalPrices, setLocalTotalPrices] = useState([]);
+    const [loading, setLoading] = useState(false);  // Add loading state
+    const toast = useToast();  // For notifications
+    const navigate = useNavigate();  // For navigation
+
+    const [guestInfo, setGuestInfo] = useState({
+        name: '',
+        email: '',
+        address: '',
+        city: '',
+        country: '',
+        postal_code: '',
+    });
+
+    const { isOpen: isModalOpen, onOpen: onModalOpen, onClose: onModalClose } = useDisclosure();  // Modal for guest info
 
     // Initialize local state based on cart items, but only once
     useEffect(() => {
@@ -41,6 +60,40 @@ function Navbar() {
         setLocalTotalPrices(updatedTotalPrices);
 
         updateQuantity(itemId, newQuantity);
+    };
+
+    // Cart ID from localStorage
+    const cartId = localStorage.getItem('cartId');
+    const accessToken = localStorage.getItem('accessToken');  // Check if the user is authenticated
+
+    // Handle checkout
+    const initiateCheckout = () => {
+        if (accessToken) {
+            // If authenticated, proceed with checkout
+            handleCheckout(cartId, {}, setLoading, toast, navigate);
+        } else {
+            // If unauthenticated, open guest info modal
+            onModalOpen();
+        }
+    };
+
+    // Handle Guest Info Submission for Checkout
+    const handleGuestCheckout = () => {
+        if (!guestInfo.name || !guestInfo.email || !guestInfo.address || !guestInfo.city || !guestInfo.postal_code) {
+            toast({
+                title: 'Missing Information',
+                description: 'Please fill in all the required fields.',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            return;
+        }
+        // Save guest info in localStorage so it's used in the checkout form
+        localStorage.setItem('guestInfo', JSON.stringify(guestInfo));
+
+        onModalClose();  // Close the modal once info is collected
+        handleCheckout(cartId, guestInfo, setLoading, toast, navigate);  // Pass guest info to handleCheckout
     };
 
     return (
@@ -153,7 +206,12 @@ function Navbar() {
                                     <Text fontSize="lg">Rs {overallTotalPrice}</Text>
                                     <Text fontSize="sm" color="gray.500">Taxes included. Discounts and shipping calculated at checkout.</Text>
                                 </Box>
-                                <Button colorScheme="orange" w="full" onClick={onClose}>
+                                <Button
+                                    colorScheme="orange"
+                                    w="full"
+                                    onClick={initiateCheckout}  // Trigger checkout based on user type
+                                    isLoading={loading}
+                                >
                                     Checkout
                                 </Button>
                             </Flex>
@@ -161,6 +219,48 @@ function Navbar() {
                     </DrawerContent>
                 </Drawer>
             </Flex>
+
+            {/* Modal for guest user information */}
+            <Modal isOpen={isModalOpen} onClose={onModalClose}>
+                <ModalOverlay />
+                <ModalContent>
+                    <ModalHeader>Guest Checkout Information</ModalHeader>
+                    <ModalCloseButton />
+                    <ModalBody>
+                        <FormControl isRequired>
+                            <FormLabel>Full Name</FormLabel>
+                            <Input value={guestInfo.name} onChange={(e) => setGuestInfo({ ...guestInfo, name: e.target.value })} />
+                        </FormControl>
+                        <FormControl isRequired mt={4}>
+                            <FormLabel>Email</FormLabel>
+                            <Input type="email" value={guestInfo.email} onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })} />
+                        </FormControl>
+                        <FormControl isRequired mt={4}>
+                            <FormLabel>Address</FormLabel>
+                            <Input value={guestInfo.address} onChange={(e) => setGuestInfo({ ...guestInfo, address: e.target.value })} />
+                        </FormControl>
+                        <FormControl isRequired mt={4}>
+                            <FormLabel>City</FormLabel>
+                            <Input value={guestInfo.city} onChange={(e) => setGuestInfo({ ...guestInfo, city: e.target.value })} />
+                        </FormControl>
+                        <FormControl isRequired mt={4}>
+                            <FormLabel>Country</FormLabel>
+                            <Input value={guestInfo.country} onChange={(e) => setGuestInfo({ ...guestInfo, country: e.target.value })} />
+                        </FormControl>
+                        <FormControl isRequired mt={4}>
+                            <FormLabel>Postal Code</FormLabel>
+                            <Input value={guestInfo.postal_code} onChange={(e) => setGuestInfo({ ...guestInfo, postal_code: e.target.value })} />
+                        </FormControl>
+                    </ModalBody>
+
+                    <ModalFooter>
+                        <Button colorScheme="blue" mr={3} onClick={handleGuestCheckout}>
+                            Proceed to Checkout
+                        </Button>
+                        <Button variant="ghost" onClick={onModalClose}>Cancel</Button>
+                    </ModalFooter>
+                </ModalContent>
+            </Modal>
         </Box>
     );
 }
