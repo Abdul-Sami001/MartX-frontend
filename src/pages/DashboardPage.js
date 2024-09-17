@@ -14,10 +14,10 @@ import useStore from '../stores/store';
 const DashboardPage = () => {
     const { initializeCart, fetchProducts, } = useStore();
 
-    useEffect(() => {
-        initializeCart();
-        fetchProducts();
-    }, [initializeCart, fetchProducts]);
+    // useEffect(() => {
+    //     initializeCart();
+    //     fetchProducts();
+    // }, [initializeCart, fetchProducts]);
 
     return (
         <>

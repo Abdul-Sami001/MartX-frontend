@@ -1,35 +1,54 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Image, Text, Button, Flex, Icon } from '@chakra-ui/react';
+import { Box, Grid, Image, Text, Button, Flex, Icon, Spinner } from '@chakra-ui/react';
 import { FaStar } from 'react-icons/fa';
-import useCartStore from '../stores/cartStore';  // Import Zustand cart store
-import useProductStore from '../stores/productStore';  // Import Zustand cart store
+import { useCart } from '../hooks/useCart';  // Custom hook for cart operations
+import { useProducts } from '../hooks/useProducts';  // React Query hook to fetch products
 
 function ProductListing() {
-    const products = useProductStore((state) => state.products);  // Fetch products from the product store
-    const addToCart = useCartStore((state) => state.addToCart);  // Use the addToCart function from the cart store
-    const initializeCart = useCartStore((state) => state.initializeCart);  // Use the initializeCart function
+    const { data: products, isLoading, error } = useProducts();  // Fetch products using React Query
+    const { addToCartMutation } = useCart();  // Use cart operations from React Query and Zustand
+    const navigate = useNavigate();  // For navigation
 
-    const navigate = useNavigate(); // For navigation
-
-
+    // Handle adding a product to the cart
     const handleAddToCart = (product) => {
-        addToCart(product);
-        initializeCart();  // Re-fetch cart items to ensure the latest data is displayed
+        addToCartMutation.mutate({ productId: product.id });  // Trigger the add-to-cart mutation
     };
 
-    
+    // Navigate to product detail page
     const handleCardClick = (productId) => {
         navigate(`/product/${productId}`);
     };
 
-    if (!products || products.length === 0) return <p>Loading...</p>;
+    // Display loading spinner while fetching products
+    if (isLoading) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+                <Spinner size="xl" />
+            </Box>
+        );
+    }
 
+    // Display error message if there's an error
+    if (error) {
+        return (
+            <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+                <Text color="red.500">Failed to load products. Please try again later.</Text>
+            </Box>
+        );
+    }
+
+    // If no products are found or results key is missing
+    if (!products || !products.results || products.results.length === 0) {
+        return <Text>No products available.</Text>;
+    }
+
+    // Render products from the `results` array
     return (
-        <Box p={4} mt={8} >
+        <Box p={4} mt={8}>
             <Text fontSize="2xl" mb={4} fontWeight="bold">Featured Products</Text>
             <Grid templateColumns="repeat(auto-fill, minmax(240px, 1fr))" gap={6}>
-                {products.map((product) => (
+                {products.results.map((product) => (
                     <Box
                         key={product.id}
                         p={4}
@@ -39,6 +58,7 @@ function ProductListing() {
                         _hover={{ boxShadow: "lg", transform: "translateY(-5px)" }}
                         transition="transform 0.3s ease"
                     >
+                        {/* Product Image */}
                         <Box
                             height="200px"
                             width="100%"
@@ -47,9 +67,9 @@ function ProductListing() {
                             borderRadius="md"
                             bg="gray.100"
                         >
-                            {product.image ? (
+                            {product.images && product.images.length > 0 ? (
                                 <Image
-                                    src={product.image}
+                                    src={product.images[0].image}  // Display the first image
                                     alt={product.title}
                                     width="100%"
                                     height="100%"
@@ -64,36 +84,44 @@ function ProductListing() {
                             )}
                         </Box>
 
+                        {/* Product Title */}
                         <Text fontWeight="bold" mb={1} noOfLines={1} minHeight="24px">
                             {product.title}
                         </Text>
 
+                        {/* Product Description */}
                         <Text fontSize="sm" color="gray.600" mb={2} noOfLines={3} minHeight="60px">
                             {product.description || ' '}
                         </Text>
 
+                        {/* Product Rating */}
                         <Flex mb={4} minHeight="24px">
                             {[...Array(5)].map((_, i) => (
                                 <Icon
                                     key={i}
                                     as={FaStar}
-                                    color={i < product.rating ? "orange.400" : "gray.300"}
+                                    color={i < product.average_rating ? "orange.400" : "gray.300"}
                                     boxSize={4}
                                 />
                             ))}
                         </Flex>
 
+                        {/* Product Price */}
                         <Text fontWeight="bold" fontSize="lg" mb={4} minHeight="24px">
                             {product.unit_price ? `Rs ${product.unit_price.toFixed(2)}` : 'N/A'}
                         </Text>
 
+                        {/* Add to Cart Button */}
                         <Button
                             bgGradient="linear(to-b,  #132063, #0A0E23)"
                             color="white"
                             _hover={{ bgGradient: "linear(to-b,  orange.200, orange.600)", boxShadow: "md" }}
                             size="sm"
                             width="full"
-                            onClick={() => handleAddToCart(product)}  // Handle add to cart and re-fetch the cart
+                            onClick={(e) => {
+                                e.stopPropagation();  // Prevent navigating to the product page
+                                handleAddToCart(product);
+                            }}
                         >
                             Add to Cart
                         </Button>
