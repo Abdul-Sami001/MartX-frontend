@@ -3,14 +3,14 @@ import { Drawer, DrawerOverlay, DrawerContent, DrawerHeader, DrawerBody, DrawerF
 import { FaTrash } from 'react-icons/fa';
 import { NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper } from '@chakra-ui/react';
 import { useCart } from '../hooks/useCart';  // React Query custom hook for cart operations
-import { updateItemQuantity } from '../services/cartService';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import useCartStore from '../stores/cartStore';
+import useCartStore from '../stores/cartStore';  // Zustand store for cart state
+import { useQueryClient } from '@tanstack/react-query';
 const CartDrawer = ({ isOpen, onClose, cartItems, initiateCheckout, loading }) => {
     const queryClient = useQueryClient(); // React Query client
     const cartId = localStorage.getItem('cartId'); // Get cartId from localStorage
-    const updateItemLocally = useCartStore((state) => state.updateItemLocally); // Zustand action to update local state
-    const { updateItemMutation, removeFromCartMutation  } = useCart();  // React Query mutation
+    const { updateItemMutation, removeFromCartMutation } = useCart();  // React Query mutation
+    const updateItemLocally = useCartStore((state) => state.updateItemLocally);  // Zustand action to update local state
+
     // Calculate total price, ensuring item.product and item.product.unit_price exist
     const overallTotalPrice = cartItems.reduce((total, item) => {
         const unitPrice = item.product?.unit_price || 0;  // Fallback to 0 if unit_price is undefined
@@ -19,29 +19,26 @@ const CartDrawer = ({ isOpen, onClose, cartItems, initiateCheckout, loading }) =
 
     // Handle quantity change
     const handleQuantityChange = (itemId, newQuantity) => {
-        if (newQuantity < 1) return;  // Avoid 0 or negative quantities
+        if (newQuantity < 1) return;  // Avoid negative or zero quantities
 
-        updateItemMutation.mutate(
-            { itemId, quantity: newQuantity },
-            {
-                onMutate: async ({ itemId, quantity }) => {
-                    // Optimistically update the cart in Zustand
-                    updateItemLocally({ id: itemId, quantity });
+        console.log('Updating quantity:', newQuantity);  // Log to ensure correct value
 
-                    // Optionally return a context with the previous state
-                    return { previousItems: queryClient.getQueryData(['cart', cartId]) };
-                },
-                onError: (err, newItem, context) => {
-                    // Rollback optimistic update if mutation fails
-                    queryClient.setQueryData(['cart', cartId], context.previousItems);
-                },
-                onSettled: () => {
-                    // Always refetch the cart after mutation
-                    queryClient.invalidateQueries({ queryKey: ['cart', cartId] });
-                },
+        // Update the quantity locally first (optimistic update)
+        updateItemLocally(itemId, newQuantity);
+
+        // Call the mutation to update the quantity in the backend
+        updateItemMutation.mutate({ itemId, quantity: newQuantity }, {
+            onSuccess: (updatedItem) => {
+                console.log('Quantity successfully updated:', updatedItem);
+                // Optionally refetch the cart or update the local state
+                queryClient.invalidateQueries({ queryKey: ['cart', cartId] });
+            },
+            onError: (error) => {
+                console.error('Error updating quantity:', error);
             }
-        );
+        });
     };
+
     // Handle removing an item
     const handleRemoveItem = (itemId) => {
         if (!itemId) return;

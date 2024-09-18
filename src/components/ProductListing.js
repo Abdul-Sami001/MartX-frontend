@@ -4,15 +4,31 @@ import { Box, Grid, Image, Text, Button, Flex, Icon, Spinner } from '@chakra-ui/
 import { FaStar } from 'react-icons/fa';
 import { useCart } from '../hooks/useCart';  // Custom hook for cart operations
 import { useProducts } from '../hooks/useProducts';  // React Query hook to fetch products
+import useCartStore from '../stores/cartStore';  // Zustand store for cart state
+import { toast } from 'react-toastify';
 
 function ProductListing() {
     const { data: products, isLoading, error } = useProducts();  // Fetch products using React Query
     const { addToCartMutation } = useCart();  // Use cart operations from React Query and Zustand
     const navigate = useNavigate();  // For navigation
+    const cartItems = useCartStore((state) => state.cartItems);  // Access current cart items from Zustand store
 
     // Handle adding a product to the cart
     const handleAddToCart = (product) => {
-        addToCartMutation.mutate({ productId: product.id });  // Trigger the add-to-cart mutation
+        const existingItem = cartItems.find(item => item.product.id === product.id);
+
+        if (existingItem) {
+            toast.info(`"${product.title}" is already in the cart!`);  // Show a toast notification
+        } else {
+            addToCartMutation.mutate({ productId: product.id }, {
+                onSuccess: () => {
+                    toast.success(`"${product.title}" has been added to your cart!`);  // Show success toast
+                },
+                onError: (error) => {
+                    toast.error('Failed to add item to cart. Please try again.');  // Show error toast
+                }
+            });
+        }
     };
 
     // Navigate to product detail page
