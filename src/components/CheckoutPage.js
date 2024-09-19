@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useParams } from 'react-router-dom';
-import { Box, VStack, Heading, FormControl, FormLabel, Input, Button, Text, useToast } from '@chakra-ui/react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Box, VStack, Heading, FormControl, FormLabel, Input, Button, Text, useToast, Toast } from '@chakra-ui/react';
 import { useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
-import api from '../services/authInterceptor';  // Use the configured axios instance
-import axios from 'axios';
-
+import { useMutation } from '@tanstack/react-query';  // React Query for mutations
+import { createOrder, createPaymentIntent } from '../services/checkoutService';  // Updated services
+import { toast } from 'react-toastify';
 export default function CheckoutPage() {
-    const { orderId } = useParams();  // Get the dynamic order ID from URL parameters
-    const [clientSecret, setClientSecret] = useState('');  // For storing the Stripe client secret
+   
     const [loading, setLoading] = useState(false);  // Handle loading state during payment process
     const [userInfo, setUserInfo] = useState({  // Store user billing info
         name: '',
@@ -16,12 +14,12 @@ export default function CheckoutPage() {
         address: '',
         city: '',
         country: '',
-        postalCode: '',
+        postal_code: '',
     });
+    const toast = useToast();  // Toast notifications for feedback
     const navigate = useNavigate();
     const stripe = useStripe();  // Stripe instance for payment processing
     const elements = useElements();  // Access Stripe's card elements
-    const toast = useToast();  // Toast notifications for feedback
 
     // Populate fields with guest information from localStorage (if available)
     useEffect(() => {
@@ -33,7 +31,7 @@ export default function CheckoutPage() {
                 address: guestInfo.address || '',
                 city: guestInfo.city || '',
                 country: guestInfo.country || '',
-                postalCode: guestInfo.postal_code || '',
+                postal_code: guestInfo.postal_code || '',
             });
         }
     }, []);  // Only run this effect once when the component mounts
@@ -43,6 +41,47 @@ export default function CheckoutPage() {
         const { name, value } = e.target;
         setUserInfo((prev) => ({ ...prev, [name]: value }));
     };
+
+    // React Query Mutations for order creation and payment intent
+    const createOrderMutation = useMutation({
+        mutationFn: async () => {
+            const cartId = localStorage.getItem('cartId');  // Retrieve cart ID
+           
+            if (!cartId) {
+                throw new Error('Cart ID not found. Please add items to the cart first.');
+            }
+    
+            return createOrder({ cartId, userInfo });  // Call createOrder from the service
+        },
+        onError: (error) => {
+            console.error('Order creation failed:', error);
+            toast({
+                title: 'Order Creation Failed',
+                description: error.message || 'Something went wrong.',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            setLoading(false);
+        }
+    });
+
+    const createPaymentIntentMutation = useMutation({
+        mutationFn: async (orderId) => {
+            return createPaymentIntent({ orderId });  // Call createPaymentIntent from the service
+        },
+        onError: (error) => {
+            console.error('Payment Intent creation failed:', error);
+            toast({
+                title: 'Payment Failed',
+                description: error.message || 'Something went wrong with payment.',
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            setLoading(false);
+        }
+    });
 
     // Handle the submission of the payment form
     const handleSubmit = async (e) => {
@@ -55,57 +94,15 @@ export default function CheckoutPage() {
                 throw new Error('Stripe is not initialized.');
             }
 
+            // Step 1: Create or retrieve the order
+            const { orderId: createdOrderId } = await createOrderMutation.mutateAsync();
+            console.log("created order Id Checkout Page", createdOrderId);  // Save the order ID to avoid re-creating it
+
+            // Step 2: Create Payment Intent for the order
+            const clientSecret = await createPaymentIntentMutation.mutateAsync(createdOrderId);
+
+            // Step 3: Confirm the payment using Stripe
             const cardElement = elements.getElement(CardElement);
-            let createdOrderId;
-            let orderResponse = null;
-            const existingOrderId = localStorage.getItem('orderId');  // Get orderId from localStorage
-            const accessToken = localStorage.getItem('accessToken');  // Retrieve access token for authenticated users
-            const cartId = localStorage.getItem('cartId');  // Retrieve cart ID
-
-            if (!cartId) {
-                throw new Error('Cart ID not found. Please add items to the cart first.');
-            }
-
-            // Check if an order already exists in localStorage
-            if (existingOrderId) {
-                createdOrderId = existingOrderId;
-                console.log('Using existing order with ID:', createdOrderId);
-
-                // If the user is authenticated (i.e., accessToken exists), fetch the existing order details
-                if (accessToken) {
-                    try {
-                        const existingOrderResponse = await api.get(`/store/orders/${createdOrderId}/`);
-                        orderResponse = existingOrderResponse.data;
-                    } catch (error) {
-                        console.error('Error fetching existing order:', error);
-                        throw error;  // Handle token refresh in authInterceptor
-                    }
-                } else {
-                    console.log('Unauthenticated user cannot fetch existing orders from the API.');
-                }
-            } else {
-                // Step 1: Send guest information to the backend and create the order
-                orderResponse = await axios.post('http://127.0.0.1:8000/store/orders/', {
-                    name: userInfo.name,
-                    email: userInfo.email,
-                    address: userInfo.address,
-                    city: userInfo.city,
-                    country: userInfo.country,
-                    postal_code: userInfo.postalCode,
-                    cart_id: cartId,
-                });
-
-                createdOrderId = orderResponse.data.id;
-                localStorage.setItem('orderId', createdOrderId);  // Save the order ID to avoid re-creating it
-                console.log('Order created with ID:', createdOrderId);
-            }
-
-            // Step 2: Proceed with Stripe payment using the clientSecret
-            const paymentIntentResponse = await axios.post('http://127.0.0.1:8000/create-payment-intent/', {
-                order_id: createdOrderId,  // Pass the order ID to get the payment intent
-            });
-
-            const { clientSecret } = paymentIntentResponse.data;
             const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
                 payment_method: {
                     card: cardElement,
@@ -135,26 +132,23 @@ export default function CheckoutPage() {
                 isClosable: true,
             });
 
-            // Save order details in localStorage for guest users (optional)
+            // Save order details for guest users
             localStorage.setItem('guestOrderId', createdOrderId);
             localStorage.setItem('guestEmail', userInfo.email);
 
             // Redirect guest user to the guest order confirmation page
-            navigate(`/guest-order-confirmation/${createdOrderId}`);  // Redirect guest to their order details page
+            
+            navigate(`/guest-order-confirmation/${createdOrderId}`);
 
         } catch (error) {
-            if (error.response && error.response.data && error.response.data.error) {
-                alert(error.response.data.error);  // Display validation error (e.g., payment already completed)
-            } else {
-                toast({
-                    title: 'Payment Failed',
-                    description: error.message,
-                    status: 'error',
-                    duration: 5000,
-                    isClosable: true,
-                });
-            }
-            console.error('Order creation failed:', error);  // Log any error for better debugging
+            toast({
+                title: 'Payment Failed',
+                description: error.message,
+                status: 'error',
+                duration: 5000,
+                isClosable: true,
+            });
+            console.error('Payment failed:', error);  // Log any error for better debugging
         } finally {
             setLoading(false);
         }

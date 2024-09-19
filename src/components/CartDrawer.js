@@ -1,16 +1,30 @@
-import React from 'react';
-import { Drawer, DrawerOverlay, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Text, IconButton, Flex, Box } from '@chakra-ui/react';
+import React, {useState} from 'react';
+import { Drawer, DrawerOverlay, DrawerContent, DrawerHeader, DrawerBody, DrawerFooter, Button, Text, IconButton, Flex, Box, useDisclosure } from '@chakra-ui/react';
 import { FaTrash } from 'react-icons/fa';
 import { NumberInput, NumberInputField, NumberInputStepper, NumberIncrementStepper, NumberDecrementStepper } from '@chakra-ui/react';
 import { useCart } from '../hooks/useCart';  // React Query custom hook for cart operations
 import useCartStore from '../stores/cartStore';  // Zustand store for cart state
 import { useQueryClient } from '@tanstack/react-query';
-const CartDrawer = ({ isOpen, onClose, cartItems, initiateCheckout, loading }) => {
+import { useNavigate } from 'react-router-dom';
+import GuestInfoModal from './GuestInfoModal';
+const CartDrawer = ({ isOpen, onClose, cartItems, loading }) => {
     const queryClient = useQueryClient(); // React Query client
     const cartId = localStorage.getItem('cartId'); // Get cartId from localStorage
-    const { updateItemMutation, removeFromCartMutation } = useCart();  // React Query mutation
+    const accessToken = localStorage.getItem('accessToken'); // Get cartId from localStorage
+    const { updateItemMutation, removeFromCartMutation, initiateCheckoutMutation } = useCart();  // React Query mutation
     const updateItemLocally = useCartStore((state) => state.updateItemLocally);  // Zustand action to update local state
-
+    const { isOpen: isGuestModalOpen, onOpen: openGuestModal, onClose: closeGuestModal } = useDisclosure();  // For handling guest modal
+    const navigate = useNavigate();
+    const [guestInfo, setGuestInfo] = useState({  // Store guest info locally
+        name: '',
+        email: '',
+        address: '',
+        city: '',
+        country: '',
+        postal_code: ''
+    });
+    
+    
     // Calculate total price, ensuring item.product and item.product.unit_price exist
     const overallTotalPrice = cartItems.reduce((total, item) => {
         const unitPrice = item.product?.unit_price || 0;  // Fallback to 0 if unit_price is undefined
@@ -52,6 +66,26 @@ const CartDrawer = ({ isOpen, onClose, cartItems, initiateCheckout, loading }) =
                 console.error('Error removing item:', error);
             }
         });
+    };
+
+    // Handle checkout initiation
+    const handleCheckout = () => {
+        if (!accessToken) {
+            //alert('Please login to checkout');
+            openGuestModal();
+        } else {
+            const guestInfo = JSON.parse(localStorage.getItem('guestInfo')) || {};
+            initiateCheckoutMutation.mutate(guestInfo);
+        }
+    };
+
+    // Handle guest info submission
+    const handleGuestSubmit = (guestInfo) => {
+        // Store guest info in local storage to persist
+        localStorage.setItem('guestInfo', JSON.stringify(guestInfo));
+        // Proceed with checkout once guest info is collected
+        initiateCheckoutMutation.mutate(guestInfo);
+        closeGuestModal();  // Close the modal
     };
 
     return (
@@ -112,14 +146,20 @@ const CartDrawer = ({ isOpen, onClose, cartItems, initiateCheckout, loading }) =
                         <Button
                             colorScheme="orange"
                             w="full"
-                            onClick={initiateCheckout}
-                            isLoading={loading}
+                            onClick={handleCheckout}
+                            isLoading={initiateCheckoutMutation.isLoading || loading}
                         >
                             Checkout
                         </Button>
                     </Flex>
                 </DrawerFooter>
             </DrawerContent>
+            {/* Guest checkout modal */}
+            <GuestInfoModal
+                isOpen={isGuestModalOpen}
+                onClose={closeGuestModal}
+                handleGuestSubmit={handleGuestSubmit}  // Pass handler for guest info submission
+            />
         </Drawer>
     );
 };

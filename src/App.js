@@ -20,6 +20,7 @@ import LogoutButton from './components/LogoutButton';
 import { useCart } from './hooks/useCart';
 import { initializeCart } from './services/cartService'; // Import cart initialization service
 import useCartStore from './stores/cartStore'; // Zustand store for setting the cart
+import GuestInfoModal from './components/GuestInfoModal';
 
 const stripePromise = loadStripe('pk_test_51PsV1D03pR92vHPUx85GxUuipVPCfKAjxsboQbvefxLLoZFQUC0Ec6xD0P99uWJth7pW2SHuGQCCzT7sq2sA9azK00Au7Rxijd');
 
@@ -55,6 +56,7 @@ function App() {
             <Route path="/product/:id" element={<ProductPage />} />  {/* Dynamic route */}
             <Route path="/checkout/:orderId" element={<CheckoutPage />} />
             <Route path="/checkout/" element={<CheckoutPage />} />
+            <Route path="/guest-info/" element={<GuestInfoModal />} />
             <Route path="/confirmation/:orderId" element={<OrderConfirmation />} />
             <Route path="/guest-order-confirmation/:orderId" element={<GuestOrderView />} />
             <Route path="/seller" element={<Dashboard />} />

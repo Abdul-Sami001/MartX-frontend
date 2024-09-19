@@ -1,7 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { initializeCart, addItemToCart, updateItemQuantity, removeItemFromCart } from '../services/cartService';
 import useCartStore from '../stores/cartStore';
-
+import { createOrder, createPaymentIntent } from '../services/checkoutService';
+import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-toastify';
 export const useCart = () => {
     const queryClient = useQueryClient();
     const cartId = useCartStore((state) => state.cartId);
@@ -9,7 +11,7 @@ export const useCart = () => {
     const addItemLocally = useCartStore((state) => state.addItemLocally);
     const updateItemLocally = useCartStore((state) => state.updateItemLocally);
     const removeItemLocally = useCartStore((state) => state.removeItemLocally);
-
+    const navigate = useNavigate();
     // const initializeCartMutation = useMutation(initializeCart, {
     //     onSuccess: (data) => {
     //         // Store the cartId and cartItems in Zustand
@@ -104,10 +106,48 @@ export const useCart = () => {
         },
     });
 
+    // Mutation for initiating checkout
+    const initiateCheckoutMutation = useMutation({
+        mutationFn: async (guestInfo) => {
+            let currentCartId = cartId;
+            let createdOrderId = localStorage.getItem('orderId'); // Check if order already exists
+
+            // If no order is found, create a new order
+            if (!createdOrderId) {
+                // Step 1: Create order
+                const { orderId, orderResponse } = await createOrder({ cartId: currentCartId, userInfo: guestInfo });
+                createdOrderId = orderId;
+                localStorage.setItem('orderId', orderId);  // Save order ID locally
+            }
+
+            // Step 2: Create payment intent
+            const clientSecret = await createPaymentIntent({ orderId: createdOrderId });
+
+            // Store client secret in localStorage for the next step
+            localStorage.setItem('clientSecret', clientSecret);
+
+            // Display success notification
+            toast.success('Order created successfully! Redirecting to checkout...');
+            
+            // Step 3: Redirect to the checkout page
+            navigate(`/checkout/${createdOrderId}`);
+        },
+        onError: (error) => {
+            toast.error(`Error during checkout: ${error.message || 'Something went wrong!'}`);
+            console.error('Error during checkout initiation:', error);
+        },
+        onSuccess: () => {
+            // Invalidate the cart query to refetch the cart
+            queryClient.invalidateQueries({ queryKey: ['cart', cartId] });
+        },
+    });
+
+
     return {
         fetchCartQuery,
         addToCartMutation,
         updateItemMutation,
         removeFromCartMutation,
+        initiateCheckoutMutation,
     };
 };
