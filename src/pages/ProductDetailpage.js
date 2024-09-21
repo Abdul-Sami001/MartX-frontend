@@ -18,7 +18,7 @@ const ProductPage = () => {
 
     // Fetch product details when the component mounts or when the product ID changes
     useEffect(() => {
-        initializeCart(); // Initialize the cart state
+       // initializeCart(); // Initialize the cart state
 
         const fetchProduct = async () => {
             try {

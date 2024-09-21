@@ -93,13 +93,19 @@ export default function CheckoutPage() {
             if (!stripe || !elements) {
                 throw new Error('Stripe is not initialized.');
             }
-
+            //recomment the below line if it not work properly
             // Step 1: Create or retrieve the order
-            const { orderId: createdOrderId } = await createOrderMutation.mutateAsync();
-            console.log("created order Id Checkout Page", createdOrderId);  // Save the order ID to avoid re-creating it
+            let orderId = localStorage.getItem('orderId'); 
+            if (!orderId) {
+                const orderData = await createOrderMutation.mutateAsync();  // Create a new order
+                orderId = orderData.orderId;  // Extract orderId from the response
+                localStorage.setItem('orderId', orderId);  // Save the new orderId in localStorage
+            
+            }
+            console.log("created order Id Checkout Page", orderId); // Save the order ID to avoid re-creating it
 
             // Step 2: Create Payment Intent for the order
-            const clientSecret = await createPaymentIntentMutation.mutateAsync(createdOrderId);
+            const clientSecret = await createPaymentIntentMutation.mutateAsync( orderId );
 
             // Step 3: Confirm the payment using Stripe
             const cardElement = elements.getElement(CardElement);
@@ -133,12 +139,13 @@ export default function CheckoutPage() {
             });
 
             // Save order details for guest users
-            localStorage.setItem('guestOrderId', createdOrderId);
+            localStorage.removeItem('orderId');
+            //localStorage.setItem('guestOrderId', createdOrderId);
             localStorage.setItem('guestEmail', userInfo.email);
 
             // Redirect guest user to the guest order confirmation page
             
-            navigate(`/guest-order-confirmation/${createdOrderId}`);
+            navigate(`/guest-order-confirmation/${orderId}`);
 
         } catch (error) {
             toast({
@@ -187,7 +194,7 @@ export default function CheckoutPage() {
 
                 <FormControl isRequired>
                     <FormLabel htmlFor="postalCode">Postal Code</FormLabel>
-                    <Input id="postalCode" name="postalCode" value={userInfo.postalCode} onChange={handleInputChange} />
+                    <Input id="postalCode" name="postalCode" value={userInfo.postal} onChange={handleInputChange} />
                 </FormControl>
 
                 {/* Stripe Card Element */}

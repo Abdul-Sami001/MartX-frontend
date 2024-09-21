@@ -1,7 +1,9 @@
 import axios from 'axios';
 import api from './authInterceptor';  // For authenticated API calls
 
+import { useNavigate} from 'react-router-dom'
 export const handleBuyNow = async (productId, quantity = 1, userInfo, setLoading, toast, navigate) => {
+   
     setLoading(true);  // Show loading state while processing
 
     try {
@@ -62,9 +64,9 @@ export const handleBuyNow = async (productId, quantity = 1, userInfo, setLoading
         // Save the order ID and payment intent in localStorage for later use
         localStorage.setItem('orderId', createdOrderId);
         localStorage.setItem('clientSecret', clientSecret);
-
+       
         // Redirect to payment page (or handle payment flow immediately)
-        navigate(`/checkout/${createdOrderId}`);  // Redirect user to the checkout page
+        //navigate(`/checkout/${createdOrderId}`);  // Redirect user to the checkout page
 
     } catch (error) {
         console.error('Error during Buy Now:', error);
