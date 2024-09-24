@@ -21,6 +21,11 @@ import { useCart } from './hooks/useCart';
 import { initializeCart } from './services/cartService'; // Import cart initialization service
 import useCartStore from './stores/cartStore'; // Zustand store for setting the cart
 import GuestInfoModal from './components/GuestInfoModal';
+import OrderHistory from './components/OrderHistory';
+import OrderDetail from './components/OrderDetail';
+import GuestOrderTracking from './components/GuestOrderTracking';
+import VendorProductsPage from './components/VendorProductsPage';
+
 
 const stripePromise = loadStripe('pk_test_51PsV1D03pR92vHPUx85GxUuipVPCfKAjxsboQbvefxLLoZFQUC0Ec6xD0P99uWJth7pW2SHuGQCCzT7sq2sA9azK00Au7Rxijd');
 
@@ -62,6 +67,11 @@ function App() {
             <Route path="/seller" element={<Dashboard />} />
             <Route path="/image" element={<ImageUpload />} />
             <Route path="/logout" element={<LogoutButton />} />
+
+            <Route path="/orders" element={<OrderHistory />} />  {/* Authenticated user order history */}
+            <Route path="/orders/:orderId" element={<OrderDetail />} />  {/* Order detail page */}
+            <Route path="/guest-order-tracking" element={<GuestOrderTracking />} />  {/* Guest order tracking */}
+            <Route path="/vendors/:vendorId/products" element={<VendorProductsPage />} />
           </Routes>
         </Router>
       </Elements>

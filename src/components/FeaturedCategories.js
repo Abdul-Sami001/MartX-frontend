@@ -1,20 +1,30 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import Slider from 'react-slick';
-import { Box, Image, Text, Flex } from '@chakra-ui/react';
+import { Box, Image, Text, Flex, Spinner } from '@chakra-ui/react';
+import axios from 'axios';  // Axios for making API requests
+import { toast } from 'react-toastify';  // Toast for error handling
 
 function FeaturedCategories() {
-    // Placeholder data for categories
-    const categories = [
-        { name: "Men", image: "/category-imgs/category1.jpeg" },
-        { name: "Women", image: "/category-imgs/category2.jpeg" },
-        { name: "Kids", image: "/category-imgs/category3.jpeg" },
-        { name: "Formal", image: "/category-imgs/category4.jpeg" },
-        { name: "Casual", image: "/category-imgs/category5.jpeg" },
-        { name: "Pumps", image: "/category-imgs/category6.jpeg" },
-        { name: "Sports", image: "/category-imgs/category7.jpeg" },
-        { name: "Slippers", image: "/category-imgs/category8.jpeg" },
-        { name: "Orthopedic", image: "/category-imgs/category9.jpeg" },
-    ];
+    const [categories, setCategories] = useState([]);  // State to store categories from API
+    const [loading, setLoading] = useState(true);  // Loading state
+    const [error, setError] = useState(null);  // Error state
+
+    // Fetch categories from the API when the component mounts
+    useEffect(() => {
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get('http://127.0.0.1:8000/store/collections/');
+                setCategories(response.data);  // Assuming data is directly the array of categories
+                setLoading(false);
+            } catch (err) {
+                setError('Failed to load categories');
+                toast.error('Failed to load categories');  // Show toast on error
+                setLoading(false);
+            }
+        };
+
+        fetchCategories();
+    }, []);
 
     // React Slick Slider settings for responsive behavior
     const settings = {
@@ -57,11 +67,29 @@ function FeaturedCategories() {
         ],
     };
 
+    // Display loading spinner while fetching categories
+    if (loading) {
+        return (
+            <Flex justify="center" align="center" height="200px">
+                <Spinner size="lg" />
+            </Flex>
+        );
+    }
+
+    // Display error message if there's an error
+    if (error) {
+        return (
+            <Flex justify="center" align="center" height="200px">
+                <Text color="red.500">{error}</Text>
+            </Flex>
+        );
+    }
+
     return (
         <Box py={{ base: 4, md: 8 }} px={{ base: 2, md: 4 }}>
             <Slider {...settings}>
-                {categories.map((category, index) => (
-                    <Flex key={index} direction="column" align="center" justify="center" mx={2}>
+                {categories.map((category) => (
+                    <Flex key={category.id} direction="column" align="center" justify="center" mx={2}>
                         <Box
                             borderRadius="full"
                             overflow="hidden"
@@ -71,9 +99,10 @@ function FeaturedCategories() {
                             border="2px solid #F47D31"
                             boxShadow="lg"
                         >
+                            {/* Placeholder Image - You can replace this with the actual category image if available */}
                             <Image
-                                src={category.image}
-                                alt={category.name}
+                                src={`/category-imgs/default-category.jpg`}  // Replace with real image if available in the response
+                                alt={category.title}
                                 width="100%"
                                 height="100%"
                                 objectFit="cover"
@@ -82,7 +111,7 @@ function FeaturedCategories() {
                             />
                         </Box>
                         <Text fontSize={{ base: "xs", md: "sm", lg: "md" }} fontWeight="bold" color="#0A0E23">
-                            {category.name}
+                            {category.title}
                         </Text>
                     </Flex>
                 ))}

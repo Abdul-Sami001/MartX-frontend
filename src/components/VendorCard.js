@@ -15,13 +15,14 @@ import {
 } from '@chakra-ui/react';
 import { FaStar } from 'react-icons/fa';
 import useVendorStore from '../stores/vendorStore';
+import { useNavigate } from 'react-router-dom';  // Import the useNavigate hook
 
 const VendorCard = () => {
     const fetchVendors = useVendorStore((state) => state.fetchVendors); // Fetching vendors from Zustand store
     const vendors = useVendorStore((state) => state.vendors);
     const loading = useVendorStore((state) => state.loading);
     const error = useVendorStore((state) => state.error);
-
+    const navigate = useNavigate();
     useEffect(() => {
         fetchVendors(); // Fetch vendors when the component mounts
     }, [fetchVendors]);
@@ -120,7 +121,7 @@ const VendorCard = () => {
                                     bg="orange.400"
                                     color="white"
                                     borderRadius="full"
-                                    onClick={() => { }}  // Example action
+                                    onClick={() => navigate(`/vendors/${vendor.id}/products`)}  // Navigate to vendor's product page
                                     _hover={{ bg: "orange.500" }}
                                 >
                                     Visit Vendor

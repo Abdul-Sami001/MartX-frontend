@@ -70,7 +70,7 @@ const ProductInfo = ({ product }) => {
             });
 
             // Step 2: Create the payment intent for the order
-            const clientSecret = await createPaymentIntentMutation.mutateAsync({ orderId });
+            //const clientSecret = await createPaymentIntentMutation.mutateAsync({ orderId });
 
             // Redirect to the payment page
             navigate(`/checkout/${orderId}`);  // Redirect to checkout page
@@ -105,7 +105,7 @@ const ProductInfo = ({ product }) => {
 
             }
             // Step 2: Create the payment intent for the order
-            const clientSecret = await createPaymentIntentMutation.mutateAsync({ orderId });
+           // const clientSecret = await createPaymentIntentMutation.mutateAsync({ orderId });
 
             // Redirect to the payment page
             navigate(`/checkout/${orderId}`);

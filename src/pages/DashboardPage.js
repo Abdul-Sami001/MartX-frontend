@@ -3,7 +3,7 @@ import Navbar from '../components/Navbar';
 import Banner from '../components/Banner';
 import FeaturedCategories from '../components/FeaturedCategories';
 import Footer from '../components/Footer';
-import ProductListing from '../components/ProductListing';
+import ProductListing from '../components/FeatureProducts';
 import Testimonials from '../components/Testimonials';
 import PromotionalBanner from '../components/PromotionalBanner';
 import NewsletterSignup from '../components/NewsletterSignup';

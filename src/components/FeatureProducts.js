@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Image, Text, Button, Flex, Icon, Spinner, Input, Select } from '@chakra-ui/react';
+import { Box, Grid, Image, Text, Button, Flex, Icon, Spinner } from '@chakra-ui/react';
 import { FaStar } from 'react-icons/fa';
 import { useCart } from '../hooks/useCart';  // Custom hook for cart operations
 import { useProducts } from '../hooks/useProducts';  // React Query hook to fetch products
@@ -9,47 +9,15 @@ import { toast } from 'react-toastify';
 import axios from 'axios';  // Axios for fetching vendor-specific products
 
 function ProductListing({ vendorId }) {
+    const { data: products, isLoading, error } = useProducts();  // Fetch products using React Query
     const { addToCartMutation } = useCart();  // Use cart operations from React Query and Zustand
     const navigate = useNavigate();  // For navigation
     const cartItems = useCartStore((state) => state.cartItems);  // Access current cart items from Zustand store
-    const [vendorProducts, setVendorProducts] = useState([]);
-    const [loadingVendorProducts, setLoadingVendorProducts] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [collectionId, setCollectionId] = useState('');
-    const [minPrice, setMinPrice] = useState('');
-    const [maxPrice, setMaxPrice] = useState('');
-    const [sortBy, setSortBy] = useState('');
-    const [products, setProducts] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    // Fetch products based on filters and sorting
-    useEffect(() => {
-        const fetchProducts = async () => {
-            try {
-                setLoading(true);
-                const params = {
-                    search: searchTerm,
-                    collection_id: collectionId,
-                    unit_price__gt: minPrice,
-                    unit_price__lt: maxPrice,
-                    ordering: sortBy,
-                };
-
-                const { data } = await axios.get(`http://127.0.0.1:8000/store/products/`, { params });
-                setProducts(data.results || []);  // Ensure results are fetched
-            } catch (error) {
-                setError('Failed to load products.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        fetchProducts();
-    }, [searchTerm, collectionId, minPrice, maxPrice, sortBy]);
+    const [vendorProducts, setVendorProducts] = React.useState([]);
+    const [loadingVendorProducts, setLoadingVendorProducts] = React.useState(true);
 
     // Fetch vendor-specific products if vendorId is passed
-    useEffect(() => {
+    React.useEffect(() => {
         const fetchVendorProducts = async () => {
             if (vendorId) {
                 try {
@@ -92,7 +60,7 @@ function ProductListing({ vendorId }) {
     };
 
     // Display loading spinner while fetching products
-    if (loading || loadingVendorProducts) {
+    if (isLoading || loadingVendorProducts) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
                 <Spinner size="xl" />
@@ -110,8 +78,9 @@ function ProductListing({ vendorId }) {
     }
 
     // Handle product list for vendor or general products
-    const productList = vendorId ? vendorProducts : products;
-
+    const productList = vendorId ? vendorProducts : products?.results;
+    console.log(vendorProducts)
+    console.log(productList)
     // If no products are found
     if (!productList || productList.length === 0) {
         return <Text>No products available.</Text>;
@@ -123,43 +92,6 @@ function ProductListing({ vendorId }) {
             <Text fontSize="2xl" mb={4} fontWeight="bold">
                 {vendorId ? 'Vendor Products' : 'Featured Products'}
             </Text>
-
-            {/* Filters */}
-            <Box mb={4}>
-                <Input
-                    placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    mb={2}
-                />
-                <Select placeholder="Select Collection" value={collectionId} onChange={(e) => setCollectionId(e.target.value)} mb={2}>
-                    {/* Populate this with actual collection options */}
-                    <option value="1">Flowers</option>
-                    <option value="2">Grocery</option>
-                    {/* Add more options dynamically based on available collections */}
-                </Select>
-                <Flex gap={2} mb={2}>
-                    <Input
-                        placeholder="Min Price"
-                        type="number"
-                        value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value)}
-                    />
-                    <Input
-                        placeholder="Max Price"
-                        type="number"
-                        value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value)}
-                    />
-                </Flex>
-                <Select placeholder="Sort By" value={sortBy} onChange={(e) => setSortBy(e.target.value)} mb={4}>
-                    <option value="unit_price">Price (Low to High)</option>
-                    <option value="-unit_price">Price (High to Low)</option>
-                    <option value="last_update">Newest</option>
-                    <option value="-last_update">Oldest</option>
-                </Select>
-            </Box>
-
             <Grid templateColumns="repeat(auto-fill, minmax(240px, 1fr))" gap={6}>
                 {productList.map((product) => (
                     <Box
