@@ -1,31 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Grid, Image, Text, Button, Flex, Icon, Spinner, Input, Select } from '@chakra-ui/react';
-import { FaStar } from 'react-icons/fa';
+import {
+    Box, Grid, Image, Text, Button, Flex, Icon, Spinner, Input, Select, HStack
+} from '@chakra-ui/react';
+import { FaStar, FaBoxOpen } from 'react-icons/fa';
 import { useCart } from '../hooks/useCart';  // Custom hook for cart operations
-import { useProducts } from '../hooks/useProducts';  // React Query hook to fetch products
-import useCartStore from '../stores/cartStore';  // Zustand store for cart state
 import { toast } from 'react-toastify';
-import axios from 'axios';  // Axios for fetching vendor-specific products
+import useCartStore from '../stores/cartStore';  // Zustand store for cart state
+import useSearchStore from '../stores/useSearchStore';  // Zustand store for search state
+import useFilterStore from '../stores/useFilterStore';
+import useCategoryStore from '../stores/CategoryStore'; // Import the category store// Zustand store for filter state
+import axios from 'axios';
+import debounce from 'lodash.debounce';  // Debouncing utility
 
 function ProductListing({ vendorId }) {
-    const { addToCartMutation } = useCart();  // Use cart operations from React Query and Zustand
+    const { addToCartMutation } = useCart();  // Use cart operations from Zustand store and React Query
     const navigate = useNavigate();  // For navigation
     const cartItems = useCartStore((state) => state.cartItems);  // Access current cart items from Zustand store
-    const [vendorProducts, setVendorProducts] = useState([]);
-    const [loadingVendorProducts, setLoadingVendorProducts] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [collectionId, setCollectionId] = useState('');
-    const [minPrice, setMinPrice] = useState('');
-    const [maxPrice, setMaxPrice] = useState('');
-    const [sortBy, setSortBy] = useState('');
+    const { categories, fetchCategories, loading: loadingCategories } = useCategoryStore();
+    // Fetching data from search and filter stores
+    const { query, setQuery } = useSearchStore();
+    const { collectionId, minPrice, maxPrice, sortBy, setCollectionId, setMinPrice, setMaxPrice, setSortBy } = useFilterStore();
+
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [pagination, setPagination] = useState({ next: null, previous: null });
 
-    // Fetch products based on filters and sorting
     useEffect(() => {
-        const fetchProducts = async () => {
+        fetchCategories(); // Fetch categories on mount
+    }, []);
+
+    // Debounced search function for query
+    const debouncedSearch = useCallback(
+        debounce(async (searchTerm) => {
             try {
                 setLoading(true);
                 const params = {
@@ -35,64 +43,100 @@ function ProductListing({ vendorId }) {
                     unit_price__lt: maxPrice,
                     ordering: sortBy,
                 };
-
                 const { data } = await axios.get(`http://127.0.0.1:8000/store/products/`, { params });
-                setProducts(data.results || []);  // Ensure results are fetched
+                setProducts(data.results || []);
+                setPagination({ next: data.next, previous: data.previous });
             } catch (error) {
                 setError('Failed to load products.');
             } finally {
                 setLoading(false);
             }
-        };
+        }, 800),  // 800ms debounce for search
+        [collectionId, minPrice, maxPrice, sortBy]
+    );
 
-        fetchProducts();
-    }, [searchTerm, collectionId, minPrice, maxPrice, sortBy]);
+    // Debounced functions for min and max price
+    const debouncedMinPrice = useCallback(
+        debounce((value) => setMinPrice(value), 3000), // 800ms debounce for min price
+        []
+    );
 
-    // Fetch vendor-specific products if vendorId is passed
+    const debouncedMaxPrice = useCallback(
+        debounce((value) => setMaxPrice(value), 3000), // 800ms debounce for max price
+        []
+    );
+
     useEffect(() => {
-        const fetchVendorProducts = async () => {
-            if (vendorId) {
-                try {
-                    const { data } = await axios.get(`http://127.0.0.1:8000/store/vendors/${vendorId}/products/`);
-                    setVendorProducts(data || []);  // Ensure results are fetched
-                } catch (error) {
-                    toast.error('Failed to load vendor products.');
-                } finally {
-                    setLoadingVendorProducts(false);
-                }
-            } else {
-                setLoadingVendorProducts(false);  // No vendorId, skip vendor product loading
-            }
+        if (query) {
+            debouncedSearch(query);  // Trigger debounced search
+        } else {
+            fetchProducts();  // Fetch products without search term
+        }
+        return () => {
+            debouncedSearch.cancel();  // Clean up debounce on unmount
         };
+    }, [query, debouncedSearch]);
 
-        fetchVendorProducts();
-    }, [vendorId]);
+    // Fetch products based on filters and search term
+    const fetchProducts = async () => {
+        try {
+            setLoading(true);
+            const params = {
+                search: query,
+                collection_id: collectionId,
+                unit_price__gt: minPrice,
+                unit_price__lt: maxPrice,
+                ordering: sortBy,
+            };
+
+            const { data } = await axios.get(`http://127.0.0.1:8000/store/products/`, { params });
+            setProducts(data.results || []);
+            setPagination({ next: data.next, previous: data.previous });
+        } catch (error) {
+            setError('Failed to load products.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCardClick = (productId) => {
+        navigate(`/product/${productId}`);
+    };
+
+    // Handle pagination
+    const handlePagination = async (url) => {
+        try {
+            setLoading(true);
+            const { data } = await axios.get(url);
+            setProducts(data.results || []);
+            setPagination({ next: data.next, previous: data.previous });
+        } catch (error) {
+            setError('Failed to load products.');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     // Handle adding a product to the cart
     const handleAddToCart = (product) => {
         const existingItem = cartItems.find(item => item.product.id === product.id);
 
         if (existingItem) {
-            toast.info(`"${product.title}" is already in the cart!`);  // Show a toast notification
+            toast.info(`"${product.title}" is already in the cart!`);
         } else {
             addToCartMutation.mutate({ productId: product.id }, {
                 onSuccess: () => {
-                    toast.success(`"${product.title}" has been added to your cart!`);  // Show success toast
+                    toast.success(`"${product.title}" has been added to your cart!`);
                 },
                 onError: () => {
-                    toast.error('Failed to add item to cart. Please try again.');  // Show error toast
+                    toast.error('Failed to add item to cart. Please try again.');
                 }
             });
         }
     };
 
-    // Navigate to product detail page
-    const handleCardClick = (productId) => {
-        navigate(`/product/${productId}`);
-    };
-
     // Display loading spinner while fetching products
-    if (loading || loadingVendorProducts) {
+    if (loading) {
         return (
             <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
                 <Spinner size="xl" />
@@ -109,80 +153,104 @@ function ProductListing({ vendorId }) {
         );
     }
 
-    // Handle product list for vendor or general products
-    const productList = vendorId ? vendorProducts : products;
-
     // If no products are found
-    if (!productList || productList.length === 0) {
-        return <Text>No products available.</Text>;
+    if (!products || products.length === 0) {
+        return (
+            <Box textAlign="center" py={10}>
+                <Icon as={FaBoxOpen} w={20} h={20} color="gray.400" mb={4} />
+                <Text fontSize="lg" mb={4}>No products available.</Text>
+                <Text color="gray.500" mb={6}>Try adjusting your search or filters to find more results.</Text>
+                <Button colorScheme="blue" onClick={() => {
+                    setQuery('');
+                    setCollectionId('');
+                    setMinPrice('');
+                    setMaxPrice('');
+                    setSortBy('');
+                }}>Clear Filters</Button>
+            </Box>
+        );
     }
 
-    // Render the product list (either vendor-specific or general featured products)
+    // Render the product list
     return (
         <Box p={4} mt={8}>
             <Text fontSize="2xl" mb={4} fontWeight="bold">
                 {vendorId ? 'Vendor Products' : 'Featured Products'}
             </Text>
 
-            {/* Filters */}
-            <Box mb={4}>
+            {/* Horizontal Search, Sorting, and Filters */}
+            <HStack mb={6} gap={4} alignItems="center" justifyContent="space-between" flexWrap="wrap">
                 <Input
                     placeholder="Search..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    mb={2}
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    width={{ base: "100%", sm: "250px" }}
+                    borderColor="orange.400"
                 />
-                <Select placeholder="Select Collection" value={collectionId} onChange={(e) => setCollectionId(e.target.value)} mb={2}>
-                    {/* Populate this with actual collection options */}
-                    <option value="1">Flowers</option>
-                    <option value="2">Grocery</option>
-                    {/* Add more options dynamically based on available collections */}
+                <Select
+                    placeholder={loadingCategories ? "Loading..." : "Select Collection"}
+                    value={collectionId}
+                    onChange={(e) => setCollectionId(e.target.value)}
+                    width={{ base: "100%", sm: "200px" }}
+                    borderColor="orange.400"
+                >
+                    {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                            {category.title}
+                        </option>
+                    ))}
                 </Select>
-                <Flex gap={2} mb={2}>
-                    <Input
-                        placeholder="Min Price"
-                        type="number"
-                        value={minPrice}
-                        onChange={(e) => setMinPrice(e.target.value)}
-                    />
-                    <Input
-                        placeholder="Max Price"
-                        type="number"
-                        value={maxPrice}
-                        onChange={(e) => setMaxPrice(e.target.value)}
-                    />
-                </Flex>
-                <Select placeholder="Sort By" value={sortBy} onChange={(e) => setSortBy(e.target.value)} mb={4}>
+
+                {/* Min and Max Price Input Fields */}
+                <Input
+                    placeholder="Min Price"
+                    type="number"
+                    value={minPrice}
+                    onChange={(e) => setMinPrice(e.target.value)}
+                    onBlur={fetchProducts}  // Trigger fetch when user leaves the field
+                    width="100px"
+                    borderColor="orange.400"
+                />
+                <Input
+                    placeholder="Max Price"
+                    type="number"
+                    value={maxPrice}
+                    onChange={(e) => setMaxPrice(e.target.value)}
+                    onBlur={fetchProducts}  // Trigger fetch when user leaves the field
+                    width="100px"
+                    borderColor="orange.400"
+                />
+
+                <Select
+                    placeholder="Sort By"
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    width={{ base: "100%", sm: "200px" }}
+                    borderColor="orange.400"
+                >
                     <option value="unit_price">Price (Low to High)</option>
                     <option value="-unit_price">Price (High to Low)</option>
                     <option value="last_update">Newest</option>
                     <option value="-last_update">Oldest</option>
                 </Select>
-            </Box>
+            </HStack>
 
+            {/* Product List */}
             <Grid templateColumns="repeat(auto-fill, minmax(240px, 1fr))" gap={6}>
-                {productList.map((product) => (
+                {products.map((product) => (
                     <Box
                         key={product.id}
                         p={4}
                         border="1px solid #e2e8f0"
                         borderRadius="md"
-                        onClick={() => handleCardClick(product.id)}  // Navigate to product detail
+                        onClick={() => handleCardClick(product.id)}
                         _hover={{ boxShadow: "lg", transform: "translateY(-5px)" }}
                         transition="transform 0.3s ease"
                     >
-                        {/* Product Image */}
-                        <Box
-                            height="200px"
-                            width="100%"
-                            overflow="hidden"
-                            mb={4}
-                            borderRadius="md"
-                            bg="gray.100"
-                        >
+                        <Box height="200px" width="100%" overflow="hidden" mb={4} borderRadius="md" bg="gray.100">
                             {product.images && product.images.length > 0 ? (
                                 <Image
-                                    src={product.images[0].image}  // Display the first image
+                                    src={product.images[0].image}
                                     alt={product.title}
                                     width="100%"
                                     height="100%"
@@ -197,38 +265,28 @@ function ProductListing({ vendorId }) {
                             )}
                         </Box>
 
-                        {/* Product Title */}
-                        <Text fontWeight="bold" mb={1} noOfLines={1} minHeight="24px">
+                        <Text fontWeight="bold" mb={1} noOfLines={1}>
                             {product.title}
                         </Text>
 
-                        {/* Product Description */}
                         <Text fontSize="sm" color="gray.600" mb={2} noOfLines={3} minHeight="60px">
-                            {product.description || ' '}
+                            {product.description || 'No description available.'}
                         </Text>
 
-                        {/* Product Rating */}
-                        <Flex mb={4} minHeight="24px">
+                        <Flex mb={4}>
                             {[...Array(5)].map((_, i) => (
-                                <Icon
-                                    key={i}
-                                    as={FaStar}
-                                    color={i < product.average_rating ? "orange.400" : "gray.300"}
-                                    boxSize={4}
-                                />
+                                <Icon key={i} as={FaStar} color={i < product.average_rating ? "orange.400" : "gray.300"} boxSize={4} />
                             ))}
                         </Flex>
 
-                        {/* Product Price */}
-                        <Text fontWeight="bold" fontSize="lg" mb={4} minHeight="24px">
-                            {product.unit_price ? `Rs ${product.unit_price.toFixed(2)}` : 'N/A'}
+                        <Text fontWeight="bold" fontSize="lg" mb={4}>
+                            {product.unit_price ? `₹${product.unit_price.toFixed(2)}` : 'N/A'}
                         </Text>
 
-                        {/* Add to Cart Button */}
                         <Button
-                            bgGradient="linear(to-b,  #132063, #0A0E23)"
+                            bgGradient="linear(to-b, #132063, #0A0E23)"
                             color="white"
-                            _hover={{ bgGradient: "linear(to-b,  orange.200, orange.600)", boxShadow: "md" }}
+                            _hover={{ bgGradient: "linear(to-b, orange.200, orange.600)", boxShadow: "md" }}
                             size="sm"
                             width="full"
                             onClick={(e) => {
@@ -241,6 +299,23 @@ function ProductListing({ vendorId }) {
                     </Box>
                 ))}
             </Grid>
+
+            {/* Pagination Controls */}
+            <Flex justifyContent="center" mt={8}>
+                <Button
+                    isDisabled={!pagination.previous}
+                    onClick={() => handlePagination(pagination.previous)}
+                    mr={4}
+                >
+                    Previous
+                </Button>
+                <Button
+                    isDisabled={!pagination.next}
+                    onClick={() => handlePagination(pagination.next)}
+                >
+                    Next
+                </Button>
+            </Flex>
         </Box>
     );
 }

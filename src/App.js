@@ -25,6 +25,7 @@ import OrderHistory from './components/OrderHistory';
 import OrderDetail from './components/OrderDetail';
 import GuestOrderTracking from './components/GuestOrderTracking';
 import VendorProductsPage from './components/VendorProductsPage';
+import ProductListing from './components/ProductListing';
 
 
 const stripePromise = loadStripe('pk_test_51PsV1D03pR92vHPUx85GxUuipVPCfKAjxsboQbvefxLLoZFQUC0Ec6xD0P99uWJth7pW2SHuGQCCzT7sq2sA9azK00Au7Rxijd');
@@ -67,7 +68,7 @@ function App() {
             <Route path="/seller" element={<Dashboard />} />
             <Route path="/image" element={<ImageUpload />} />
             <Route path="/logout" element={<LogoutButton />} />
-
+            <Route path="/products" element={<ProductListing />} />
             <Route path="/orders" element={<OrderHistory />} />  {/* Authenticated user order history */}
             <Route path="/orders/:orderId" element={<OrderDetail />} />  {/* Order detail page */}
             <Route path="/guest-order-tracking" element={<GuestOrderTracking />} />  {/* Guest order tracking */}
