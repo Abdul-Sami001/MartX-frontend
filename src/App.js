@@ -26,7 +26,8 @@ import OrderDetail from './components/OrderDetail';
 import GuestOrderTracking from './components/GuestOrderTracking';
 import VendorProductsPage from './components/VendorProductsPage';
 import ProductListing from './components/ProductListing';
-
+import Profile from './components/Profile';
+import VendorOrders from './components/VendorOrders';
 
 const stripePromise = loadStripe('pk_test_51PsV1D03pR92vHPUx85GxUuipVPCfKAjxsboQbvefxLLoZFQUC0Ec6xD0P99uWJth7pW2SHuGQCCzT7sq2sA9azK00Au7Rxijd');
 
@@ -73,6 +74,8 @@ function App() {
             <Route path="/orders/:orderId" element={<OrderDetail />} />  {/* Order detail page */}
             <Route path="/guest-order-tracking" element={<GuestOrderTracking />} />  {/* Guest order tracking */}
             <Route path="/vendors/:vendorId/products" element={<VendorProductsPage />} />
+            <Route path="/profile" element={<Profile />} />
+            <Route path="/vendor-orders" element={<VendorOrders />} />
           </Routes>
         </Router>
       </Elements>
